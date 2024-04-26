@@ -1,0 +1,189 @@
+version: "3"
+
+services:
+
+  namenode:
+    image: bde2020/hadoop-namenode
+    container_name: namenode
+    restart: "on-failure"
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    ports:
+      - "9870:9870"
+    environment:
+      - CLUSTER_NAME=namenode_test
+    env_file:
+      - ./hadoop.env
+
+  datanode1:
+    image: bde2020/hadoop-datanode
+    container_name: datanode_1
+    depends_on:
+      - namenode
+    restart: "on-failure"
+    volumes:
+      - hadoop_datanode-1:/hadoop/dfs/data
+    ports:
+      - "9864:9864"
+    env_file:
+      - ./hadoop.env
+
+  datanode2:
+    image: bde2020/hadoop-datanode
+    container_name: datanode_2
+    depends_on:
+      - namenode
+    restart: "on-failure"
+    volumes:
+      - hadoop_datanode-2:/hadoop/dfs/data
+    ports:
+      - "9865:9864"
+    env_file:
+      - ./hadoop.env
+
+  datanode3:
+    image: bde2020/hadoop-datanode
+    container_name: datanode_3
+    depends_on:
+      - namenode
+    restart: "on-failure"
+    volumes:
+      - hadoop_datanode-3:/hadoop/dfs/data
+    ports:
+      - "9866:9864"
+    env_file:
+      - ./hadoop.env
+
+  nodemanager:
+    image: bde2020/hadoop-nodemanager
+    container_name: nodemanager
+    depends_on:
+      - namenode
+      - datanode1
+      - datanode2
+      - datanode3
+    restart: "on-failure"
+    ports:
+      - "8042:8042"
+    env_file:
+      - ./hadoop.env
+
+  resourcemanager:
+    image: bde2020/hadoop-resourcemanager
+    container_name: resourcemanager
+    depends_on:
+      - namenode
+      - datanode1
+      - datanode2
+      - datanode3
+    restart: "on-failure"
+    ports:
+      - "8088:8088"
+    env_file:
+      - ./hadoop.env
+
+  historyserver:
+    image: bde2020/hadoop-historyserver
+    container_name: historyserver
+    depends_on:
+      - namenode
+      - datanode1
+      - datanode2
+      - datanode3
+    restart: "on-failure"
+    volumes:
+      - hadoop_historyserver:/hadoop/yarn/timeline
+    ports:
+      - "8188:8188"
+    env_file:
+      - ./hadoop.env
+
+  spark-master:
+    image: bde2020/spark-master
+    container_name: spark-master
+    restart: "on-failure"
+    volumes:
+      - ./app:/app
+    ports:
+      - "8085:8085"
+      - "7077:7077"
+      - "4040:4040"
+    environment:
+      - "INIT_DAEMON_STEP=setup_spark"
+
+  spark_worker_1:
+    image: bde2020/spark-worker
+    container_name: spark_worker_1
+    depends_on:
+      - spark-master
+    ports:
+      - "8081:8081"
+    environment:
+      - "SPARK_MASTER=spark://spark-master:7077"
+
+  spark_worker_2:
+    image: bde2020/spark-worker
+    container_name: spark_worker_2
+    depends_on:
+      - spark-master
+    ports:
+      - "8082:8081"
+    environment:
+      - "SPARK_MASTER=spark://spark-master:7077"
+
+  spark_worker_3:
+    image: bde2020/spark-worker
+    container_name: spark_worker_3
+    depends_on:
+      - spark-master
+    ports:
+      - "8083:8081"
+    environment:
+      - "SPARK_MASTER=spark://spark-master:7077"
+
+  spark_history_server:
+    image: bde2020/spark-history-server
+    container_name: spark_history_server
+    depends_on:
+      - spark-master
+    ports:
+      - "18081:18081"
+    environment:
+      - "SPARK_MASTER=spark://spark-master:7077"
+    volumes:
+      - hadoop_spark_history_server:/hadoop/spark/spark-events
+
+  jupyter_pyspark_notebook:
+   image: jupyter/pyspark-notebook
+   container_name: jupyter_pyspark_notebook
+   ports:
+     - "10000:8888"
+   environment:
+     - "SPARK_MASTER=spark://spark-master:7077"
+   volumes:
+     - ./app:/home/jovyan
+   user: "1000"
+
+  db:
+    image: mysql
+    command: --default-authentication-plugin=mysql_native_password
+    container_name: mysql_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+    ports:
+      - "3306:3306"
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+
+volumes:
+  hadoop_namenode:
+  hadoop_datanode-1:
+  hadoop_datanode-2:
+  hadoop_datanode-3:
+  hadoop_historyserver:
+  hadoop_spark_history_server:
